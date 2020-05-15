@@ -1,0 +1,8 @@
+name = "ConditionalDistributionForest"
+uuid = "b91cb80d-6e55-47a2-a791-4adc951330ea"
+authors = ["Benoit Fabrèges <fabreges@math.univ-lyon1.fr>", "Véronique Maume-Deschamps <veronique.maume@univ-lyon1.fr>"]
+version = "0.1.0"
+
+[deps]
+DecisionTree = "7806a523-6efd-50cb-b5f6-3fa6f1930dbb"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
