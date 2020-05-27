@@ -1,15 +1,15 @@
 module ConditionalDistributionForest
 
-import Random
-import DecisionTree
+using Random
+using DecisionTree
 
-export compute_conditional_quantiles!, compute_conditional_quantiles, compute_conditional_distribution!, compute_conditional_distribution, build_forest
+export compute_conditional_quantiles!, compute_conditional_quantiles, compute_conditional_distribution!, compute_conditional_distribution, build_distribution_forest
 
 
 include("tree_tools.jl")
 
 
-function build_forest(
+function build_distribution_forest(
     labels              :: Vector{T},
     features            :: Matrix{S},
     n_subfeatures       = -1,
@@ -89,7 +89,7 @@ function compute_conditional_quantiles!(quant::AbstractMatrix{T},
                                         max_depth           = -1,
                                         min_samples_leaf    = 1,
                                         min_samples_split   = 2,
-                                        min_purity_increase = 0.0,
+                                        min_purity_increase = 0.0;
                                         rng                 = Random.GLOBAL_RNG) where {S, T, U <:AbstractFloat}
     forest, bootstraps = build_forest_bootstraps(Y, X, n_subfeatures, n_trees, partial_sampling, max_depth, min_samples_leaf, min_samples_split, min_purity_increase, rng = rng)
 
@@ -106,7 +106,7 @@ function compute_conditional_quantiles(forest::DecisionTree.Ensemble{S, T},
                                        Xvec::Matrix{S},
                                        quantiles::Vector{U},
                                        bootstraps = nothing) where {S, T, U <:AbstractFloat}
-    quant = Matrix{T}(undef, size(X, 1), length(quantiles))
+    quant = Matrix{T}(undef, size(Xvec, 1), length(quantiles))
     compute_conditional_quantiles!(quant, forest, Y, X, Xvec, quantiles, bootstraps)
     return quant
 end
@@ -122,7 +122,7 @@ function compute_conditional_quantiles(Y::Vector{T},
                                        max_depth           = -1,
                                        min_samples_leaf    = 1,
                                        min_samples_split   = 2,
-                                       min_purity_increase = 0.0,
+                                       min_purity_increase = 0.0;
                                        rng                 = Random.GLOBAL_RNG) where {S, T, U <:AbstractFloat}
     forest, bootstraps = build_forest_bootstraps(Y, X, n_subfeatures, n_trees, partial_sampling, max_depth, min_samples_leaf, min_samples_split, min_purity_increase, rng = rng)
 
@@ -160,7 +160,7 @@ function compute_conditional_distribution!(fdr::AbstractMatrix{U},
                                            max_depth           = -1,
                                            min_samples_leaf    = 1,
                                            min_samples_split   = 2,
-                                           min_purity_increase = 0.0,
+                                           min_purity_increase = 0.0;
                                            rng                 = Random.GLOBAL_RNG) where {S, T, U <:AbstractFloat}
     forest, bootstraps = build_forest_bootstraps(Y, X, n_subfeatures, n_trees, partial_sampling, max_depth, min_samples_leaf, min_samples_split, min_purity_increase, rng = rng)
 
@@ -176,8 +176,8 @@ function compute_conditional_distribution(forest::DecisionTree.Ensemble{S, T},
                                           X::Matrix{S},
                                           Xvec::Matrix{S},
                                           Ydiscr::Vector{T},
-                                          bootstraps = nothing) where {S, T, U <:AbstractFloat}
-    fdr = Array{U, 2}(undef, length(Ydiscr), size(Xvec, 1))
+                                          bootstraps = nothing) where {S, T}
+    fdr = Array{Float64, 2}(undef, length(Ydiscr), size(Xvec, 1))
     compute_conditional_distribution!(fdr, forest, Y, X, Xvec, Ydiscr, bootstraps)
     
     return fdr
@@ -195,89 +195,16 @@ function compute_conditional_distribution(Y::Vector{T},
                                           max_depth           = -1,
                                           min_samples_leaf    = 1,
                                           min_samples_split   = 2,
-                                          min_purity_increase = 0.0,
-                                          rng                 = Random.GLOBAL_RNG) where {S, T, U <:AbstractFloat}
+                                          min_purity_increase = 0.0;
+                                          rng                 = Random.GLOBAL_RNG) where {S, T}
     forest, bootstraps = build_forest_bootstraps(Y, X, n_subfeatures, n_trees, partial_sampling, max_depth, min_samples_leaf, min_samples_split, min_purity_increase, rng = rng)
 
-    fdr = Array{U, 2}(undef, length(Ydiscr), size(Xvec, 1))
+    fdr = Array{Float64, 2}(undef, length(Ydiscr), size(Xvec, 1))
 
     compute_conditional_distribution!(fdr, forest, Y, X, Xvec, Ydiscr, bootstraps)
     
     return fdr
 end
-
-
-
-"""
-function compute_conditional_distribution!(fdr::AbstractMatrix{U},
-                                           forest::DecisionTree.Ensemble{S, T},
-                                           Y::Vector{T},
-                                           X::Matrix{S},
-                                           Xvec::Matrix{S},
-                                           bootstraps = nothing) where {S, T, U <:AbstractFloat}
-    weights = compute_forest_weights(forest, X, Xvec, bootstraps)
-    perm_Y = sortperm(Y)    
-    @views cumsum!(fdr[perm_Y, :], weights[perm_Y, :], dims=1)
-        
-    return nothing
-end
-
-
-function compute_conditional_distribution!(fdr::AbstractMatrix{U},
-                                           Y::Vector{T},
-                                           X::Matrix{S},
-                                           Xvec::Matrix{S},
-                                           n_subfeatures       = -1,
-                                           n_trees             = 10,
-                                           partial_sampling    = 0.7,
-                                           max_depth           = -1,
-                                           min_samples_leaf    = 1,
-                                           min_samples_split   = 2,
-                                           min_purity_increase = 0.0,
-                                           rng                 = Random.GLOBAL_RNG) where {S, T, U <:AbstractFloat}
-    forest, bootstraps = build_forest_bootstraps(Y, X, n_subfeatures, n_trees, partial_sampling, max_depth, min_samples_leaf, min_samples_split, min_purity_increase, rng = rng)
-
-    compute_conditional_distribution!(fdr, forest, Y, X, Xvec, bootstraps)
-            
-    return nothing
-end
-
-
-
-function compute_conditional_distribution(forest::DecisionTree.Ensemble{S, T},
-                                          Y::Vector{T},
-                                          X::Matrix{S},
-                                          Xvec::Matrix{S},
-                                          bootstraps = nothing) where {S, T, U <:AbstractFloat}
-    fdr = Array{U, 2}(undef, length(Ydiscr), size(Xvec, 1))
-    compute_conditional_distribution!(fdr, forest, Y, X, Xvec, bootstraps)
-    
-    return fdr
-end
-
-
-
-function compute_conditional_distribution(Y::Vector{T},
-                                          X::Matrix{S},
-                                          Xvec::Matrix{S},
-                                          n_subfeatures       = -1,
-                                          n_trees             = 10,
-                                          partial_sampling    = 0.7,
-                                          max_depth           = -1,
-                                          min_samples_leaf    = 1,
-                                          min_samples_split   = 2,
-                                          min_purity_increase = 0.0,
-                                          rng                 = Random.GLOBAL_RNG) where {S, T, U <:AbstractFloat}
-    forest, bootstraps = build_forest_bootstraps(Y, X, n_subfeatures, n_trees, partial_sampling, max_depth, min_samples_leaf, min_samples_split, min_purity_increase, rng = rng)
-
-    fdr = Array{U, 2}(undef, length(Ydiscr), size(Xvec, 1))
-
-    compute_conditional_distribution!(fdr, forest, Y, X, Xvec, bootstraps)
-        
-    return fdr
-end
-"""
-
 
 
 
@@ -339,7 +266,7 @@ function compute_forest_weights(model, X, Xvec, bootstraps)
     weights = zeros(n_samples, n_prime)
     for l in 1:n_trees
 	    leafids = get_leaf_of_feature(model.trees[l], Xvec)
-        repartition = get_repartition(model.trees[l], X, bootstraps[:, l])
+        @views repartition = get_repartition(model.trees[l], X, bootstraps[:, l])
         
 	    for i in 1:n_prime
             val = 1 / length(repartition[leafids[i]])
